@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: assignment-backend
+    env: docker
+    dockerfilePath: ./Dockerfile
+    region: oregon
+    plan: free

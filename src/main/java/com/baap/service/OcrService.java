@@ -21,8 +21,14 @@ public class OcrService {
                     .send(req, HttpResponse.BodyHandlers.ofString());
 
             if (res.statusCode() != 200) return "";
-            return res.body().replace("{\"text\":", "").replace("}", "").replace("\"", "").trim();
 
+            String body = res.body();
+            body = body.replace("{\"text\":", "")
+                       .replace("}", "")
+                       .replace("\"", "")
+                       .trim();
+
+            return body;
         } catch (Exception e) {
             e.printStackTrace();
             return "";

@@ -14,7 +14,7 @@ import java.time.Duration;
 public class OcrService {
 
     // ⚠ BACKEND URL replace mat karo jab tak final server confirm na ho
-    private static final String OCR_URL = "https://pythd-ccmp.onrender.com/extract/";
+    private static final String OCR_URL = "https://pythd-ccmp.onrender.com/extract";
 
 
 

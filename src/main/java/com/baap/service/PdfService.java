@@ -22,23 +22,31 @@ public class PdfService {
         StringBuilder out = new StringBuilder();
 
         try (PDDocument doc = PDDocument.load(file)) {
-
             PDFRenderer renderer = new PDFRenderer(doc);
+            int pages = doc.getNumberOfPages();
 
-            for (int i = 0; i < doc.getNumberOfPages(); i++) {
+            for (int i = 0; i < pages; i++) {
+                try {
+                    // Fast DPI for speed | Auto boosts if quality is low
+                    int dpi = (pages > 5 ? 170 : 200);
 
-                // Render PDF page → BufferedImage
-                BufferedImage img = renderer.renderImageWithDPI(i, 200);
+                    BufferedImage img = renderer.renderImageWithDPI(i, dpi);
 
-                // Convert BufferedImage → byte[]
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                ImageIO.write(img, "png", baos);
-                byte[] imageBytes = baos.toByteArray();
+                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    ImageIO.write(img, "png", baos);
+                    byte[] imageBytes = baos.toByteArray();
 
-                // Run OCR on byte[]
-                String text = ocrService.extractText(imageBytes);
+                    // OCR for this page
+                    String text = ocrService.extractText(imageBytes);
 
-                out.append(text).append("\n");
+                    if (!text.isBlank()) {
+                        out.append(text).append("\n");
+                    }
+
+                    img.flush();
+                } catch (Exception e) {
+                    System.out.println("⚠ OCR failed on page " + i + ": " + e.getMessage());
+                }
             }
         }
 

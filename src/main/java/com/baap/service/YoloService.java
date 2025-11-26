@@ -8,53 +8,49 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 
 @Service
 public class YoloService {
 
-   private static final String YOLO_URL = "https://pythd-3.onrender.com/detect/";
-
+    // ⚠ Backend URL final deploy ke baad replace karna
+    private static final String YOLO_URL = "https://pythd-3.onrender.com/detect";
 
     private final ObjectMapper mapper = new ObjectMapper();
+    private final HttpClient client = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(10))
+            .build();
 
     public JsonNode detect(byte[] data) {
-
         try {
             HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(YOLO_URL))
+                    .timeout(Duration.ofSeconds(30))
                     .header("Content-Type", "application/octet-stream")
                     .POST(HttpRequest.BodyPublishers.ofByteArray(data))
                     .build();
 
-            HttpResponse<String> res = HttpClient.newHttpClient()
-                    .send(req, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> res = client.send(req, HttpResponse.BodyHandlers.ofString());
 
-            // Agar 200 nahi to YOLO ko ignore kar do (app crash mat karo)
+            // HTTP error = ignore YOLO
             if (res.statusCode() != 200) {
-                System.out.println("YOLO HTTP error: " + res.statusCode());
-                System.out.println("Body: " + res.body());
+                System.out.println("⚠ YOLO HTTP error: " + res.statusCode());
                 return null;
             }
 
             String body = res.body();
-            if (body == null) return null;
+            if (body == null || body.isBlank()) return null;
 
             String trimmed = body.trim();
 
-            // Agar body HTML lag rahi hai (starts with '<') to ignore
-            if (trimmed.isEmpty() || trimmed.charAt(0) == '<') {
-                System.out.println("YOLO returned non-JSON (probably HTML): ");
-                System.out.println(trimmed.substring(0, Math.min(200, trimmed.length())));
-                return null;
-            }
+            // If HTML returned, ignore
+            if (trimmed.startsWith("<")) return null;
 
-            // Ab hi JSON parse karo
             return mapper.readTree(trimmed);
 
         } catch (Exception e) {
-            e.printStackTrace();
-            // Error aaye toh null return karo, taaki backend 500 na de
-            return null;
+            System.out.println("⚠ YOLO failed: " + e.getMessage());
+            return null; // Never crash backend
         }
     }
 }

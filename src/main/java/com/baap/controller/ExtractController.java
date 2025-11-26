@@ -7,9 +7,9 @@ import com.baap.service.SuggestionService;
 import com.baap.service.YoloService;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -26,76 +26,72 @@ public class ExtractController {
     private final YoloService yoloService;
     private final SuggestionService suggestionService;
 
-    @PostMapping("/extract")
-    public ResponseEntity<?> extract(@RequestParam("file") MultipartFile file) {
+    // ------------------ MAIN API ------------------
+    @PostMapping(value = "/extract", consumes = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+    public ResponseEntity<?> extract(@RequestBody byte[] data) {
         try {
-            // Read file once
-            byte[] data = file.getBytes();
-            String name = file.getOriginalFilename().toLowerCase();
-
             String text = "";
-            Map<String, Object> img = null;
-            JsonNode yolo = null;
+            Map<String, Object> imgInsights = null;
+            List<Map<String, Object>> yoloResults = new ArrayList<>();
 
-            // --------------------- PDF ---------------------
-            if (name.endsWith(".pdf")) {
+            // Detect PDF or IMAGE
+            boolean isPdf = isPdf(data);
 
+            // ---------------- PDF ----------------
+            if (isPdf) {
                 File tempPdf = File.createTempFile("pdf-", ".pdf");
                 Files.write(tempPdf.toPath(), data);
-
                 text = pdfService.extractText(tempPdf);
-
                 tempPdf.delete();
             }
 
-            // --------------------- IMAGE ---------------------
+            // ---------------- IMAGE ----------------
             else {
-
                 text = ocrService.extractText(data);
+                imgInsights = imageService.analyze(data);
 
-
-                img = imageService.analyze(data);
-
-                yolo = yoloService.detect(data);
+                JsonNode yoloJson = yoloService.detect(data);
+                if (yoloJson != null && yoloJson.has("objects")) {
+                    for (JsonNode obj : yoloJson.get("objects")) {
+                        Map<String, Object> m = new HashMap<>();
+                        m.put("label", obj.get("label").asText());
+                        m.put("confidence", obj.get("confidence").asDouble());
+                        m.put("text", obj.has("text") ? obj.get("text").asText() : "");
+                        yoloResults.add(m);
+                    }
+                }
             }
 
-            // --------------------- PREPARE YOLO STRING FOR SUGGESTIONS ---------------------
-          String yoloString = "";
-
-if (yolo != null) {
-    JsonNode list = yolo.get("objects");
-    if (list == null) {
-        list = yolo.get("detections"); // just in case endpoint ka naam detections ho
-    }
-
-    if (list != null && list.isArray()) {
-        StringBuilder sb = new StringBuilder();
-        for (JsonNode obj : list) {
-            if (obj.has("label")) {
-                sb.append(obj.get("label").asText()).append(" ");
+            // Prepare label string for suggestions
+            StringBuilder labels = new StringBuilder();
+            for (Map<String, Object> r : yoloResults) {
+                labels.append(r.get("label")).append(" ");
             }
-        }
-        yoloString = sb.toString().trim();
-    }
-}
 
-            // --------------------- GENERATE SUGGESTIONS ---------------------
-            var suggestions = suggestionService.generate(text, img, yoloString);
+            // Suggestions
+            var suggestions = suggestionService.generate(text, imgInsights, labels.toString().trim());
 
-            // --------------------- FINAL OUTPUT ---------------------
+            // ------------------- FINAL OUTPUT -------------------
             Map<String, Object> out = new HashMap<>();
-            out.put("text", text);
-            out.put("imageInsights", img);
-            out.put("objectsDetected", (yolo != null ? yolo.get("objects") : null));
-            out.put("suggestions", suggestions);
+            out.put("results", yoloResults);         // objects + text
+            out.put("imageInsights", imgInsights);   // width/height/brightness/blur etc.
+            out.put("text", text);                   // extracted text
+            out.put("suggestions", suggestions);     // AI tips
 
             return ResponseEntity.ok(out);
 
         } catch (Exception e) {
-            e.printStackTrace();
             Map<String, Object> err = new HashMap<>();
-            err.put("error", e.toString());
+            err.put("error", e.getMessage());
             return ResponseEntity.status(500).body(err);
         }
+    }
+
+
+    // Helper — detect PDF from bytes
+    private boolean isPdf(byte[] data) {
+        return data.length > 4 &&
+                data[0] == 0x25 && data[1] == 0x50 &&
+                data[2] == 0x44 && data[3] == 0x46; // %PDF
     }
 }

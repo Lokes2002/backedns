@@ -1,13 +1,19 @@
 package com.baap.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
+
 import java.net.URI;
-import java.net.http.*;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 
 @Service
 public class OcrService {
 
     private static final String OCR_URL = "https://pythd-3.onrender.com/ocr";
+    private final ObjectMapper mapper = new ObjectMapper();
 
     public String extractText(byte[] data) {
         try {
@@ -22,13 +28,12 @@ public class OcrService {
 
             if (res.statusCode() != 200) return "";
 
-            String body = res.body();
-            body = body.replace("{\"text\":", "")
-                       .replace("}", "")
-                       .replace("\"", "")
-                       .trim();
+            JsonNode node = mapper.readTree(res.body());
+            if (node.has("text")) {
+                return node.get("text").asText().trim();
+            }
 
-            return body;
+            return "";
         } catch (Exception e) {
             e.printStackTrace();
             return "";

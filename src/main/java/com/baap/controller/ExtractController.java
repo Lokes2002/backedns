@@ -51,7 +51,7 @@ public class ExtractController {
             // --------------------- IMAGE ---------------------
             else {
 
-                text = "";  // Disable OCR because tesseract not available on cloud
+                text = ocrService.extractText(data);
 
 
                 img = imageService.analyze(data);

@@ -10,7 +10,8 @@ import java.net.http.*;
 @Service
 public class YoloService {
 
-    private final String YOLO_URL = "http://localhost:8000/detect";
+    private final String YOLO_URL = "https://pythd-3.onrender.com/detect";
+
     private final ObjectMapper mapper = new ObjectMapper();
 
     public JsonNode detect(byte[] data) throws Exception {

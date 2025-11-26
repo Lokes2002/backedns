@@ -1,13 +1,13 @@
 package com.baap.service;
 
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.rendering.PDFRenderer;
 import org.springframework.stereotype.Service;
-
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import com.baap.service.OcrService;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.rendering.PDFRenderer;
 
 @Service
 public class PdfService {
@@ -23,33 +23,23 @@ public class PdfService {
 
         try (PDDocument doc = PDDocument.load(file)) {
             PDFRenderer renderer = new PDFRenderer(doc);
-            int pages = doc.getNumberOfPages();
 
-            for (int i = 0; i < pages; i++) {
-                try {
-                    // Fast DPI for speed | Auto boosts if quality is low
-                    int dpi = (pages > 5 ? 170 : 200);
+            for (int i = 0; i < doc.getNumberOfPages(); i++) {
+                // 🔥 300 DPI = high resolution (OCR best)
+                BufferedImage img = renderer.renderImageWithDPI(i, 300);
 
-                    BufferedImage img = renderer.renderImageWithDPI(i, dpi);
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                ImageIO.write(img, "png", baos);
+                byte[] imgBytes = baos.toByteArray();
 
-                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                    ImageIO.write(img, "png", baos);
-                    byte[] imageBytes = baos.toByteArray();
+                // 🔥 force OCR on PDF image page
+                String text = ocrService.extractText(imgBytes);
 
-                    // OCR for this page
-                    String text = ocrService.extractText(imageBytes);
-
-                    if (!text.isBlank()) {
-                        out.append(text).append("\n");
-                    }
-
-                    img.flush();
-                } catch (Exception e) {
-                    System.out.println("⚠ OCR failed on page " + i + ": " + e.getMessage());
+                if (text != null && !text.isBlank()) {
+                    out.append(text).append("\n");
                 }
             }
         }
-
         return out.toString().trim();
     }
 }

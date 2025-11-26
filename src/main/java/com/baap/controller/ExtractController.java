@@ -60,19 +60,24 @@ public class ExtractController {
             }
 
             // --------------------- PREPARE YOLO STRING FOR SUGGESTIONS ---------------------
-            String yoloString = "";
+          String yoloString = "";
 
-            if (yolo != null && yolo.has("objects")) {
-                StringBuilder sb = new StringBuilder();
+if (yolo != null) {
+    JsonNode list = yolo.get("objects");
+    if (list == null) {
+        list = yolo.get("detections"); // just in case endpoint ka naam detections ho
+    }
 
-                for (JsonNode obj : yolo.get("objects")) {
-                    if (obj.has("label")) {
-                        sb.append(obj.get("label").asText()).append(" ");
-                    }
-                }
-
-                yoloString = sb.toString().trim();
+    if (list != null && list.isArray()) {
+        StringBuilder sb = new StringBuilder();
+        for (JsonNode obj : list) {
+            if (obj.has("label")) {
+                sb.append(obj.get("label").asText()).append(" ");
             }
+        }
+        yoloString = sb.toString().trim();
+    }
+}
 
             // --------------------- GENERATE SUGGESTIONS ---------------------
             var suggestions = suggestionService.generate(text, img, yoloString);

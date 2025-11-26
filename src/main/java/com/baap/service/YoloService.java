@@ -12,8 +12,8 @@ import java.net.http.HttpResponse;
 @Service
 public class YoloService {
 
-    // TODO: agar tumhara endpoint /detect ki jagah /predict ho, yahan change kar lena
-    private static final String YOLO_URL = "https://pythd-3.onrender.com/detect";
+   private static final String YOLO_URL = "https://pythd-3.onrender.com/detect/";
+
 
     private final ObjectMapper mapper = new ObjectMapper();
 

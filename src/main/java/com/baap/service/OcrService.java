@@ -14,7 +14,8 @@ import java.time.Duration;
 public class OcrService {
 
     // ⚠ BACKEND URL replace mat karo jab tak final server confirm na ho
-    private static final String OCR_URL = "https://pythd-ccmp.onrender.com/extract";
+    private static final String OCR_URL = "https://pythd-ccmp.onrender.com/extract/";
+
 
 
     private final ObjectMapper mapper = new ObjectMapper();
@@ -22,7 +23,10 @@ public class OcrService {
             .connectTimeout(Duration.ofSeconds(10))
             .build();
 
+            
+
     public String extractText(byte[] data) {
+        
         try {
             HttpRequest req = HttpRequest.newBuilder()
     .uri(URI.create(OCR_URL))
@@ -42,7 +46,7 @@ public class OcrService {
             if (node.has("text")) {
                 return node.get("text").asText().trim();
             }
-
+            System.out.println("OCR Response: " + res.body());
             return "";
         } catch (Exception e) {
             System.out.println("⚠ OCR Failed: " + e.getMessage());
